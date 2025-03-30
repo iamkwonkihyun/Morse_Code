@@ -120,11 +120,11 @@ def joinServer():
         if len(nickName) == 0 or nickName == "":
             continue
         else:
+            nickName = "sibalMacbook"
             break
     while True:
         morseCode = morseToText(getMorseInput())
         send_to_backend(nickName, morseCode)
-        print("cpu과사용금지")
 
 # 백엔드로 모스부호 보내는 함수
 def send_to_backend(nickName, morseCode):
