@@ -115,8 +115,9 @@ def getMorseInput():
 def joinServer():
     while True:
         clearScreen()
-        nickName = input("nickName: ")
-        if len(nickName) == 0:
+        nickName = input("nickName: ").strip()
+        print(nickName)
+        if len(nickName) == 0 or nickName == "":
             continue
         else:
             break
