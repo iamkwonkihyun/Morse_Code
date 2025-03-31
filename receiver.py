@@ -1,6 +1,7 @@
 import time
-from functions.functions import receive_thread
+from functions.functions import receive_morse_code, total_people
 
 while True:
-    receive_thread()
+    total_people()
+    receive_morse_code()
     time.sleep(1)

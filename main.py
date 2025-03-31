@@ -1,34 +1,18 @@
-import keyboard, time
-from functions.functions import getMorseInput, joinServer, clearScreen
+import keyboard, time, asyncio
+from functions.functions import (
+    get_morse_input, join_server, clear_screen, print_ascii_art, connect_server)
 
 if __name__ == "__main__":
+    clear_screen()
     options = ["practice morse code", "join server"]
     selected = 0
-    prev_selected = -1  # 이전 선택 상태 저장
+    prev_selected = -1
 
     while True:
         # 선택이 변경된 경우에만 화면 갱신
         if selected != prev_selected:
-            clearScreen()
-            print("""
-                                                
-    #     #   ####   ######     #####  ######   
-    ##   ##  ######   ##  ##   ### ##   ##  ##  
-    ### ###  ##  ##   ##  ##   ###      ##      
-    #######  ##  ##   #####     ####    ####    
-    ## # ##  ##  ##   ## ##       ###   ##      
-    ##   ##  ######   ## ##    ## ###   ##  ##  
-    ##   ##   ####   ### ###   #####   ######   
-                                                
-         ####    ####   #####    ######   
-       ##  ##   ######   ## ##    ##  ##  
-      ##   ##   ##  ##   ##  ##   ##      
-      ##        ##  ##   ##  ##   ####    
-      ##   ##   ##  ##   ##  ##   ##      
-       ##  ##   ######   ## ##    ##  ##  
-         ####    ####   #####    ######   
-                                                
-    """)
+            clear_screen()
+            print_ascii_art()
             for i, option in enumerate(options):
                 if i == selected:
                     print(f"{option:>32}   <--\n")  # 선택된 옵션 강조
@@ -38,6 +22,7 @@ if __name__ == "__main__":
 
         # 키 이벤트 읽기
         event = keyboard.read_event()
+
         if event.event_type == keyboard.KEY_DOWN:
             if event.name == "up":
                 selected = (selected - 1) % len(options)
@@ -50,7 +35,8 @@ if __name__ == "__main__":
         time.sleep(0.1)
 
     if options[selected] == "practice morse code":
-        getMorseInput()
+        get_morse_input()
     elif options[selected] == "join server":
-        nickName = input("nickName: ").strip()
-        joinServer()
+        asyncio.run(join_server())
+        # Mac nickname 입력 오류 변수
+        nickName = input("nickName: ").strip() # 아무런 역할 안함
