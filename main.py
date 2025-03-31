@@ -52,4 +52,5 @@ if __name__ == "__main__":
     if options[selected] == "practice morse code":
         getMorseInput()
     elif options[selected] == "join server":
+        nickName = input("nickName: ").strip()
         joinServer()
