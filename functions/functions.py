@@ -59,7 +59,6 @@ def getMorseInput():
     exit_flag = False
     last_time = time.time()
     threading.Thread(target=detectEnter, daemon=True).start()
-    # print("스페이스바를 눌러 모스부호를 입력하세요. (Enter 키로 전송)")
 
     while not exit_flag:
         clearScreen()
@@ -115,12 +114,11 @@ def getMorseInput():
 def joinServer():
     while True:
         clearScreen()
+        time.sleep(1)
         nickName = input("nickName: ").strip()
-        print(nickName)
         if len(nickName) == 0 or nickName == "":
             continue
         else:
-            nickName = "sibalMacbook"
             break
     while True:
         morseCode = morseToText(getMorseInput())
