@@ -1,6 +1,5 @@
 import keyboard, time, asyncio
-from functions.functions import (
-    get_morse_input, join_server, clear_screen, print_ascii_art, connect_server)
+from functions.functions import get_morse_input, multiplay, clear_screen, print_ascii_art
 
 if __name__ == "__main__":
     clear_screen()
@@ -37,6 +36,6 @@ if __name__ == "__main__":
     if options[selected] == "practice morse code":
         get_morse_input()
     elif options[selected] == "join server":
-        asyncio.run(join_server())
+        asyncio.run(multiplay())
         # Mac nickname 입력 오류 변수
         nickName = input("nickName: ").strip() # 아무런 역할 안함

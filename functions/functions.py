@@ -1,6 +1,6 @@
 import os
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
-import time, keyboard, os, threading, pygame, json, requests, websockets, logging, sys
+import time, keyboard, os, threading, pygame, json, requests, websockets, logging
 from urllib.parse import urljoin
 
 logging.basicConfig(
@@ -11,7 +11,7 @@ logging.basicConfig(
     filemode="a"  # 'a'는 기존 로그에 추가 (덮어쓰려면 'w')
 )
 
-# 초기화
+# pygame 초기화
 pygame.mixer.init()
 
 # mainData.json 파일 불러오기
@@ -28,30 +28,31 @@ beep_short = pygame.mixer.Sound("assets/beep_short.wav")
 
 # 상수
 REVERSE_MORSE = {value: key for key, value in morseCode.items()}
-# base_url = "ws://ec2-3-37-123-222.ap-northeast-2.compute.amazonaws.com:8000/"
-BASE_URL = "ws://localhost:8000/"
+BASE_URL = "http://ec2-3-37-123-222.ap-northeast-2.compute.amazonaws.com:8000/"
+WS_URL = "ws://ec2-3-37-123-222.ap-northeast-2.compute.amazonaws.com:8000/morse_code"
+# BASE_URL = "ws://localhost:8000/"
 ENDPOINT_MORSE_CODE = "morse_code"
 ENDPOINT_TOTAL_PEOPLE = "total_people"
 
 
 async def connect_server():
+    """서버 연결 함수"""
     global websocket
     if websocket is None or websocket.closed:
-        websocket = await websockets.connect(urljoin(BASE_URL, ENDPOINT_MORSE_CODE))
-        logging.info("✅ WebSocket 연결됨!")
+        websocket = await websockets.connect(WS_URL)
+        logging.info("WebSocket 연결됨!")
+
 
 async def send_message(nickName, morseCode):
+    """서버로 모스코드 보내는 함수"""
     await websocket.send(f"{nickName}: {morseCode}")
     response = await websocket.recv()
     logging.info(response)
 
 
-def clear_screen():
-    os.system('cls' if os.name == 'nt' else 'clear')
-
-
 # 모스부호 출력 함수
 def print_eng_morse():
+    """모스부호 표 출력 함수"""
     print("""
 A : . -        | B : - . . .    | C : - . - .    | D : - . .
 E : .          | F : . . - .    | G : - - .      | H : . . . .
@@ -66,6 +67,7 @@ Y : - . - -    | Z : - - . .    | 1 : . - - - -  | 2 : . . - - -
 
 
 def print_ascii_art():
+    """아스키 아트 프린트 함수"""
     print("""
                                                 
     #     #   ####   ######     #####  ######   
@@ -83,11 +85,11 @@ def print_ascii_art():
        ##   ##   ##  ##   ##  ##   ##      
         ##  ##   ######   ## ##    ##  ##  
           ####    ####   #####    ######   
-                                                
-    """)
+                                                """)
 
-# Enter 키 감지 함수
+
 def detect_enter():
+    """enter 감지 함수"""
     global exit_flag, morse
     morse = []
     keyboard.wait("enter")
@@ -95,12 +97,23 @@ def detect_enter():
 
 
 def detect_esc():
+    """esc 감지 함수"""
     keyboard.wait("esc")
     print("Bye Bye\n")
     os._exit(0)
 
+
 # 모스부호를 텍스트로 변환하는 함수
 def morseToText(morse_code, reverse_morse_dict=REVERSE_MORSE):
+    """입력받은 모스부호를 영어로 변환
+
+    Args:
+        morse_code (dict): 모스부호
+        reverse_morse_dict (dict): 키(모스부호):값(영어)
+
+    Returns:
+        입력받은 모스부호를 영어로 변환 후 리턴
+    """
     words = morse_code.split('  ')  # 두 칸 띄어쓰기를 단어 구분자로 사용
     decoded_words = []
     for word in words:
@@ -111,6 +124,11 @@ def morseToText(morse_code, reverse_morse_dict=REVERSE_MORSE):
 
 
 def get_morse_input():
+    """모스부호 입력 함수
+
+    Returns:
+        모스부호 딕셔너리: 입력받은 모스부호 딕셔너리
+    """
     clear_screen()
     global exit_flag, morse
     exit_flag = False
@@ -169,7 +187,8 @@ def get_morse_input():
     return ''.join(morse)
 
 
-async def join_server():
+async def multiplay():
+    """멀티플레이"""
     await connect_server()
 
     while True:
@@ -184,41 +203,12 @@ async def join_server():
         await send_message(nickName, morseCode)
 
 
-
-def receive_morse_code():
-    last_data = []  # 이전 데이터를 저장하는 리스트
-
-    while True:
-        response = requests.get(BASE_URL)
-        
-        try:
-            data = response.json()  # JSON 형식으로 응답을 파싱
-        except ValueError:
-            print("응답이 JSON 형식이 아닙니다.")
-            return
-
-        # 응답 데이터에서 'data' 키를 꺼내기
-        if "data" in data:
-            data = data["data"]  # 'data' 안에 있는 리스트만 추출
-
-            # 새로운 데이터 찾기 (last_data에 없던 것만 출력)
-            new_entries = [entry for entry in data if entry not in last_data]
-
-            if new_entries:
-                for entry in new_entries:
-                    # entry가 문자열이라면, ':'로 split하여 nickName과 morseCode 추출
-                    if isinstance(entry, str):  
-                        parts = entry.split(" : ")
-                        if len(parts) == 2:
-                            nickName, morseCode = parts
-                            print(f"{nickName} : {morseCode}")
-                    
-                # 마지막으로 본 데이터를 갱신
-                last_data.extend(new_entries)
-
-        time.sleep(1)  # 1초마다 GET 요청
-
-
 def total_people():
+    """동접자 받아오는 함수"""
     response = requests.get(urljoin(BASE_URL, ENDPOINT_TOTAL_PEOPLE))
     print(response.text)
+
+
+def clear_screen():
+    """옥시싹싹 함수"""
+    os.system('cls' if os.name == 'nt' else 'clear')
