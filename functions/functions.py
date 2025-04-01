@@ -1,6 +1,6 @@
 import os
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
-import time, keyboard, os, threading, pygame, json, requests, websockets, logging
+import time, os, threading, pygame, json, requests, websockets, logging, asyncio, keyboard
 from urllib.parse import urljoin
 
 logging.basicConfig(
@@ -25,6 +25,8 @@ websocket = None
 exit_flag = False
 beep_long = pygame.mixer.Sound("assets/beep_long.wav")
 beep_short = pygame.mixer.Sound("assets/beep_short.wav")
+last_time = time.time()
+
 
 # 상수
 REVERSE_MORSE = {value: key for key, value in morseCode.items()}
@@ -39,8 +41,13 @@ async def connect_server():
     """서버 연결 함수"""
     global websocket
     if websocket is None or websocket.closed:
-        websocket = await websockets.connect(WS_URL)
-        logging.info("WebSocket 연결됨!")
+        try:
+            websocket = await websockets.connect(WS_URL)
+            logging.info("WebSocket 연결됨!")
+        except Exception as e:
+            logging.error(f"웹소켓 연결 실패: {e}")
+            await asyncio.sleep(5)  # 5초 후 재시도
+            await connect_server()
 
 
 async def send_message(nickName, morseCode):
@@ -87,20 +94,18 @@ def print_ascii_art():
           ####    ####   #####    ######   
                                                 """)
 
-
-def detect_enter():
-    """enter 감지 함수"""
+def on_press_enter(key):
+    """Enter 키 감지 함수"""
     global exit_flag, morse
-    morse = []
-    keyboard.wait("enter")
-    exit_flag = True
+    if key == keyboard.Key.enter:
+        morse = []
+        exit_flag = True
 
-
-def detect_esc():
-    """esc 감지 함수"""
-    keyboard.wait("esc")
-    print("Bye Bye\n")
-    os._exit(0)
+def on_press_esc(key):
+    """Esc 키 감지 함수"""
+    if key == keyboard.Key.esc:
+        print("Bye Bye\n")
+        os._exit(0)
 
 
 # 모스부호를 텍스트로 변환하는 함수
@@ -120,8 +125,21 @@ def morseToText(morse_code, reverse_morse_dict=REVERSE_MORSE):
         letters = word.split()  # 공백을 기준으로 글자 구분
         decoded_word = ''.join(reverse_morse_dict.get(letter, '?') for letter in letters)  # 모스부호를 문자로 변환
         decoded_words.append(decoded_word)
-    return ' '.join(decoded_words)  # 단어를 띄어쓰기로 연결하여 반환
+    return ' '.join(decoded_words) # 단어를 띄어쓰기로 연결하여 반환
 
+def detect_enter():
+    """enter 감지 함수"""
+    global exit_flag, morse
+    morse = []
+    keyboard.wait("enter")
+    exit_flag = True
+
+
+def detect_esc():
+    """esc 감지 함수"""
+    keyboard.wait("esc")
+    print("Bye Bye\n")
+    os._exit(0)
 
 def get_morse_input():
     """모스부호 입력 함수
