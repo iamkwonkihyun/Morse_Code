@@ -53,21 +53,24 @@ async def connect_server():
     try:
         websocket = await websockets.connect(server_data["WS_URI"])
         await websocket.send("not receiver")
-        logging.info("WebSocket 연결됨!")
+        logging.info("WebSocket connected!")
+        asyncio.create_task(keep_websocket_alive())  # 연결 유지 태스크 실행
     except Exception as e:
-        logging.error(f"웹소켓 연결 실패: {e}")
+        logging.error(f"WebSocket connected failed: {e}")
         await asyncio.sleep(5)  # 5초 후 재시도
         await connect_server()
 
 
 async def keep_websocket_alive():
     """WebSocket 연결을 유지하기 위해 30초마다 ping 전송"""
+    global exit_flag
     while not exit_flag:
         try:
             if websocket is not None and not websocket.closed:
                 await websocket.send("ping")
-            await asyncio.sleep(30)  # 30초마다 Ping 전송
+            await asyncio.sleep(5)
         except Exception as e:
+            await asyncio.sleep(5)
             await connect_server()  # 연결이 끊어졌으면 다시 연결
 
 
