@@ -1,4 +1,4 @@
-## <b>Timetable Notification for Windows ( Made with Python )</b>
+## <b>MORSE CODE for Everyone ( Made with Python )</b>
 
 > ## What is MORSE CODE?
 >
