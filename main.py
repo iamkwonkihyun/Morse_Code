@@ -1,4 +1,5 @@
-import time, asyncio
+import time
+import asyncio
 from functions.functions import get_morse_input, multiplay, clear_screen, print_ascii_art
 from pynput import keyboard
 

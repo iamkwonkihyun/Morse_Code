@@ -1,63 +1,82 @@
 import os
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
-import time, os, threading, pygame, json, requests, websockets, logging, asyncio, keyboard
-from urllib.parse import urljoin
+import sys
+import time
+import threading
+import pygame
+import json
+import requests
+import websockets
+import logging
+import asyncio
+import keyboard
 
 logging.basicConfig(
-    level=logging.INFO,  # 로그 레벨 설정 (ERROR 이상만 기록)
-    format="%(asctime)s - %(levelname)s - %(message)s",  # 로그 출력 형식
-    datefmt="%Y-%m-%d %H:%M:%S",  # 시간 형식
-    filename="app.log",  # 로그를 저장할 파일명
-    filemode="a"  # 'a'는 기존 로그에 추가 (덮어쓰려면 'w')
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    filename="app.log",
+    filemode="a"
 )
 
 # pygame 초기화
 pygame.mixer.init()
 
-# mainData.json 파일 불러오기
-with open("data/mainData.json", "r", encoding="utf-8") as f:
-    data = json.load(f)
-morseCode = data["MORSE_CODE"]["ENG_MORSE_CODE"]
+# 데이터 불러오기
+with open("data/morse_code.json", "r", encoding="utf-8") as f:
+    morse_code_data = json.load(f)
+with open("data/server_data.json", "r", encoding="utf-8") as f:
+    server_data = json.load(f)
 
 # 변수
-morse = []
+morse_code = morse_code_data["MORSE_CODE"]["ENG_MORSE_CODE"]
+morse_code_list = []
 websocket = None
+previous_people = None
 exit_flag = False
+nick_name = ""
 beep_long = pygame.mixer.Sound("assets/beep_long.wav")
 beep_short = pygame.mixer.Sound("assets/beep_short.wav")
 last_time = time.time()
 
-
 # 상수
-REVERSE_MORSE = {value: key for key, value in morseCode.items()}
-BASE_URL = "http://ec2-3-37-123-222.ap-northeast-2.compute.amazonaws.com:8000/"
-WS_URL = "ws://ec2-3-37-123-222.ap-northeast-2.compute.amazonaws.com:8000/morse_code"
-# BASE_URL = "ws://localhost:8000/"
-ENDPOINT_MORSE_CODE = "morse_code"
-ENDPOINT_TOTAL_PEOPLE = "total_people"
+REVERSE_MORSE = {value: key for key, value in morse_code.items()}
 
 
 async def connect_server():
-    """서버 연결 함수"""
+    """웹소켓 연결 전 기존 연결을 닫고 새 연결 생성"""
     global websocket
-    if websocket is None or websocket.closed:
+
+    if websocket and not websocket.closed:
+        await websocket.close()  # 기존 연결 닫기
+
+    try:
+        websocket = await websockets.connect(server_data["WS_URI"])
+        await websocket.send("not receiver")
+        logging.info("WebSocket 연결됨!")
+    except Exception as e:
+        logging.error(f"웹소켓 연결 실패: {e}")
+        await asyncio.sleep(5)  # 5초 후 재시도
+        await connect_server()
+
+
+async def keep_websocket_alive():
+    """WebSocket 연결을 유지하기 위해 30초마다 ping 전송"""
+    while not exit_flag:
         try:
-            websocket = await websockets.connect(WS_URL)
-            logging.info("WebSocket 연결됨!")
+            if websocket is not None and not websocket.closed:
+                await websocket.send("ping")
+            await asyncio.sleep(30)  # 30초마다 Ping 전송
         except Exception as e:
-            logging.error(f"웹소켓 연결 실패: {e}")
-            await asyncio.sleep(5)  # 5초 후 재시도
-            await connect_server()
+            await connect_server()  # 연결이 끊어졌으면 다시 연결
 
 
 async def send_message(nickName, morseCode):
-    """서버로 모스코드 보내는 함수"""
+    """서버로 모스부호 보내는 함수"""
     await websocket.send(f"{nickName}: {morseCode}")
-    response = await websocket.recv()
-    logging.info(response)
+    await websocket.recv()
 
 
-# 모스부호 출력 함수
 def print_eng_morse():
     """모스부호 표 출력 함수"""
     print("""
@@ -76,30 +95,33 @@ Y : - . - -    | Z : - - . .    | 1 : . - - - -  | 2 : . . - - -
 def print_ascii_art():
     """아스키 아트 프린트 함수"""
     print("""
-                                                
-    #     #   ####   ######     #####  ######   
-    ##   ##  ######   ##  ##   ### ##   ##  ##  
-    ### ###  ##  ##   ##  ##   ###      ##      
-    #######  ##  ##   #####     ####    ####    
-    ## # ##  ##  ##   ## ##       ###   ##      
-    ##   ##  ######   ## ##    ## ###   ##  ##  
-    ##   ##   ####   ### ###   #####   ######   
-                                                
-          ####    ####   #####    ######   
-        ##  ##   ######   ## ##    ##  ##  
-       ##   ##   ##  ##   ##  ##   ##      
-       ##        ##  ##   ##  ##   ####    
-       ##   ##   ##  ##   ##  ##   ##      
-        ##  ##   ######   ## ##    ##  ##  
-          ####    ####   #####    ######   
+⢸⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⡇
+⢸    ##   ##    ###    ######    #####   #######    ⡇
+⢸    ### ###   ## ##   ##   ##  ##   ##   ##   #    ⡇
+⢸    #######  ##   ##  ##   ##  ##        ##        ⡇
+⢸    ## # ##  ##   ##  ######    #####    ####      ⡇
+⢸    ##   ##  ##   ##  ## ##         ##   ##        ⡇
+⢸    ##   ##   ## ##   ##  ###  ##   ##   ##   #    ⡇
+⢸    ##   ##    ###    ##   ##   #####   #######    ⡇
+⢸                                                   ⡇
+⢸          ####     ###    #####    #######         ⡇
+⢸         ##  ##   ## ##   ##  ##    ##   #         ⡇
+⢸        ##       ##   ##  ##   ##   ##             ⡇
+⢸        ##       ##   ##  ##   ##   ####           ⡇
+⢸        ##       ##   ##  ##   ##   ##             ⡇
+⢸         ##  ##   ## ##   ##  ##    ##   #         ⡇
+⢸          ####     ###    #####    #######         ⡇
+⢸⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⡇
                                                 """)
+
 
 def on_press_enter(key):
     """Enter 키 감지 함수"""
-    global exit_flag, morse
+    global exit_flag, morse_code_list
     if key == keyboard.Key.enter:
-        morse = []
+        morse_code_list = []
         exit_flag = True
+
 
 def on_press_esc(key):
     """Esc 키 감지 함수"""
@@ -108,7 +130,6 @@ def on_press_esc(key):
         os._exit(0)
 
 
-# 모스부호를 텍스트로 변환하는 함수
 def morseToText(morse_code, reverse_morse_dict=REVERSE_MORSE):
     """입력받은 모스부호를 영어로 변환
 
@@ -127,10 +148,11 @@ def morseToText(morse_code, reverse_morse_dict=REVERSE_MORSE):
         decoded_words.append(decoded_word)
     return ' '.join(decoded_words) # 단어를 띄어쓰기로 연결하여 반환
 
+
 def detect_enter():
     """enter 감지 함수"""
-    global exit_flag, morse
-    morse = []
+    global exit_flag, morse_code_list
+    morse_code_list = []
     keyboard.wait("enter")
     exit_flag = True
 
@@ -141,6 +163,7 @@ def detect_esc():
     print("Bye Bye\n")
     os._exit(0)
 
+
 def get_morse_input():
     """모스부호 입력 함수
 
@@ -148,7 +171,7 @@ def get_morse_input():
         모스부호 딕셔너리: 입력받은 모스부호 딕셔너리
     """
     clear_screen()
-    global exit_flag, morse
+    global exit_flag, morse_code_list
     exit_flag = False
     last_time = time.time()
     threading.Thread(target=detect_enter, daemon=True).start()
@@ -157,20 +180,20 @@ def get_morse_input():
     while not exit_flag:
         clear_screen()
         print_eng_morse()
-        print("\n현재 입력된 모스부호:\n" + ''.join(morse))
-        print("\n해석된 문자:\n" + morseToText(''.join(morse)))
+        print("\n현재 입력된 모스부호:\n" + ''.join(morse_code_list))
+        print("\n해석된 문자:\n" + morseToText(''.join(morse_code_list)))
         
         while not keyboard.is_pressed("space") and not keyboard.is_pressed("backspace"):
             if exit_flag:
-                return ''.join(morse)
+                return ''.join(morse_code_list)
             time.sleep(0.01)
 
-        if keyboard.is_pressed("backspace") and morse:
-            morse.pop()
+        if keyboard.is_pressed("backspace") and morse_code_list:
+            morse_code_list.pop()
             clear_screen()
             print_eng_morse()
-            print("\n현재 입력된 모스부호:\n" + ''.join(morse))
-            print("\n해석된 문자:\n" + morseToText(''.join(morse)))
+            print("\n현재 입력된 모스부호:\n" + ''.join(morse_code_list))
+            print("\n해석된 문자:\n" + morseToText(''.join(morse_code_list)))
             time.sleep(0.1)
             continue
         
@@ -180,7 +203,7 @@ def get_morse_input():
         while keyboard.is_pressed("space"):
             if exit_flag:
                 beep_long.stop()
-                return ''.join(morse)
+                return ''.join(morse_code_list)
             time.sleep(0.01)
 
         release_time = time.time()
@@ -189,44 +212,92 @@ def get_morse_input():
         duration = release_time - press_time
         gap = press_time - last_time
 
-        if gap > 0.7 and morse:
-            morse.append('  ')
-        elif gap > 0.3 and morse:
-            morse.append(' ')
+        if gap > 0.7 and morse_code_list:
+            morse_code_list.append('  ')
+        elif gap > 0.3 and morse_code_list:
+            morse_code_list.append(' ')
 
         if duration < 0.2:
-            morse.append('.')
+            morse_code_list.append('.')
             beep_short.play()
         else:
-            morse.append('-')
+            morse_code_list.append('-')
 
         last_time = release_time
 
-    return ''.join(morse)
+    return ''.join(morse_code_list)
 
 
 async def multiplay():
     """멀티플레이"""
     await connect_server()
-
+    global nick_name
+    
     while True:
         clear_screen()
-        nickName = input("nickName: ").strip()
-        if len(nickName) == 0 or nickName == "":
+        nick_name = input("nickName: ").strip()
+        if len(nick_name) == 0 or nick_name == "":
             continue
         else:
             break
     while True:
-        morseCode = morseToText(get_morse_input())
-        await send_message(nickName, morseCode)
+        await send_message(nickName=nick_name, morseCode=morseToText(get_morse_input()))
 
 
 def total_people():
-    """동접자 받아오는 함수"""
-    response = requests.get(urljoin(BASE_URL, ENDPOINT_TOTAL_PEOPLE))
-    print(response.text)
+    """동접자 받아오는 함수 (숫자만 깔끔하게 변경)"""
+    global previous_people
+
+    response = requests.get(server_data["TOTALPEOPLE_URL"])
+    current_people = response.text.strip()  # 현재 접속자 수 가져오기
+
+    if current_people != previous_people:
+        sys.stdout.write("\r" + " " * 50 + "\r")  # 기존 출력 덮어쓰기 (잔여 글자 제거)
+        sys.stdout.write(f"\ronline: {current_people}")  # 새로운 출력
+        sys.stdout.flush()  # 즉시 반영
+        previous_people = current_people  # 업데이트
 
 
 def clear_screen():
     """옥시싹싹 함수"""
     os.system('cls' if os.name == 'nt' else 'clear')
+
+
+async def websocket_listener():
+    global online_count
+    async with websockets.connect(server_data["WS_URI"]) as ws:
+        await ws.send("receiver")  # 🚀 서버에게 "나는 receiver야"라고 알림
+
+        sys.stdout.write("\033[2J")  # 화면 전체 지우기
+        sys.stdout.write("\033[1;1Honline: 0   ")  # 1행 1열에 "online: 0" 고정
+        sys.stdout.flush()
+
+        while True:
+            message = await ws.recv()
+
+            if message.startswith("online:"):
+                online_count = message.split(":")[1].strip()
+                sys.stdout.write(f"\033[1;1Honline: {online_count}   ")  # 숫자 업데이트
+                sys.stdout.flush()
+            else:
+                print(f"\n{message}")  # 웹소켓 메시지는 아래로 출력
+
+
+async def periodic_total_people():
+    """동접자 수를 주기적으로 확인하고 변동이 있을 때만 출력"""
+    global previous_people
+
+    while True:
+        total_people()  # 접속자 확인 및 출력
+        await asyncio.sleep(5)  # 5초마다 실행
+
+
+async def two_func_start():
+    """웹소켓과 동접자 확인을 동시에 실행"""
+    clear_screen()
+    
+    # 웹소켓과 total_people 주기적 실행을 동시에 수행
+    await asyncio.gather(
+        periodic_total_people(),  # 동접자 확인 (변동 있을 때만 출력)
+        websocket_listener()  # 웹소켓 실행
+    )
