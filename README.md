@@ -1,4 +1,4 @@
-## <b>MORSE CODE for Everyone ( Made with Python )</b>
+## <b>MORSE CODE for Everyone ( Made with Python )~( SERVER DOWN )~</b>
 
 > ## What is MORSE CODE?
 >
