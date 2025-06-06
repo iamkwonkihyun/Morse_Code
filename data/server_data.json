@@ -1,5 +1,5 @@
 {
-    "BASE_URL": "http://ec2-3-37-123-222.ap-northeast-2.compute.amazonaws.com:8000/",
-    "TOTALPEOPLE_URL": "http://ec2-3-37-123-222.ap-northeast-2.compute.amazonaws.com:8000/total_people",
-    "WS_URI": "ws://ec2-3-37-123-222.ap-northeast-2.compute.amazonaws.com:8000/morse_code"
+    "BASE_URL": "http://127.0.0.1:8000/",
+    "TOTALPEOPLE_URL": "http://127.0.0.1:8000/total_people",
+    "WS_URI": "ws://127.0.0.1:8000/morse_code"
 }
